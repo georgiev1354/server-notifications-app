@@ -1,0 +1,35 @@
+# /etc/fail2ban/jail.d/push-notify.local
+# Защита на SSH + push известие при всяко блокиране.
+
+[DEFAULT]
+# Не блокирай собствената мрежа (добавете своя IP / мрежа).
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled  = true
+# Ubuntu 24.04+ пише в journald – fail2ban чете от там.
+backend  = systemd
+# 5 неуспешни опита за 10 минути -> бан за 1 час.
+maxretry = 5
+findtime = 10m
+bantime  = 1h
+action   = %(action_)s
+           push-notify
+
+# Рецидивисти: 3 бана за 1 ден -> бан за 1 седмица.
+[recidive]
+enabled  = true
+backend  = auto
+logpath  = /var/log/fail2ban.log
+bantime  = 1w
+findtime = 1d
+maxretry = 3
+action   = %(action_)s
+           push-notify
+
+# Неуспешен вход в Apache (Basic Auth). Разкоментирайте, ако използвате.
+#[apache-auth]
+#enabled = true
+#port    = http,https
+#action  = %(action_)s
+#          push-notify

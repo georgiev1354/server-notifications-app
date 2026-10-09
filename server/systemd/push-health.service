@@ -1,0 +1,9 @@
+[Unit]
+Description=Push известия – проверка на състоянието на сървъра
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/push-notify/health-check.sh
+Nice=10

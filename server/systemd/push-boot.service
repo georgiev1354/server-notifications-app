@@ -1,0 +1,16 @@
+# Известие при стартиране и при спиране/рестарт на сървъра.
+# ExecStop се изпълнява, докато мрежата още работи (After=network-online.target).
+[Unit]
+Description=Push известие при стартиране и спиране на сървъра
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c '/usr/local/bin/push-notify -l warning -c system "🟢 Сървърът стартира" "$$(hostname) е включен. Ядро: $$(uname -r). Последно спиране: $$(last -x shutdown reboot 2>/dev/null | sed -n 2p | cut -c40-80)"'
+ExecStop=/usr/local/bin/push-notify -l warning -c system "🔴 Сървърът се изключва" "Сървърът се рестартира или изключва."
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
