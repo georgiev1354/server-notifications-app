@@ -1,0 +1,12 @@
+[Unit]
+Description=Push известия – грешна парола за sudo / su (следи журнала)
+After=systemd-journald.service network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/lib/push-notify/auth-watch.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

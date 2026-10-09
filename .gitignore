@@ -13,6 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+to_check/
 
 # Firebase service account ключ – никога в git
 *service-account*.json

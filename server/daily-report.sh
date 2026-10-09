@@ -36,6 +36,10 @@ if command -v fail2ban-client >/dev/null && systemctl is-active --quiet fail2ban
     banned="${banned:-0} сега, ${total:-0} общо"
 fi
 
+# RAID масиви от /proc/mdstat: „md1 active [UU]“; „_“ означава липсващ диск.
+raid=$(awk '/^md/{n=$1; st=$3; getline; printf "%s %s %s, ", n, st, $NF}' /proc/mdstat 2>/dev/null)
+raid=${raid%, }
+
 reboot="не"
 [[ -f /var/run/reboot-required ]] && reboot="ДА"
 
@@ -51,8 +55,10 @@ $disks
 🔐 SSH за 24 ч: $ok_ssh успешни, $failed_ssh неуспешни опита
 🚫 fail2ban (sshd): $banned
 ⚠️ Неуспешни услуги: ${failed_units:-няма}"
+[[ -n "$raid" ]] && report="$report
+🗄 RAID: $raid"
 
 level=info
-[[ "$reboot" == "ДА" || -n "$failed_units" ]] && level=warning
+[[ "$reboot" == "ДА" || -n "$failed_units" || "$raid" == *_* ]] && level=warning
 
 push-notify -l "$level" -c report "📊 Дневен отчет – $SERVER_NAME" "$report"

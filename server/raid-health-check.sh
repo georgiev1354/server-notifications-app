@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# health-check.sh – проверява състоянието на машината и праща известие
-# САМО при промяна (проблем → появява се, проблем → изчезва).
-# Пуска се от push-health.timer на всеки 5 минути.
+# raid-health-check.sh – проверява RAID масивите и състоянието на машината
+# (дискове, памет, натоварване, температура, услуги, рестарт, сайтове) и праща
+# push известие САМО при промяна (проблем → появява се, проблем → изчезва).
+# Проблем с RAID масив се напомня при всяко пускане, докато не бъде оправен.
+#
+# Пуска се от cron като root (install.sh създава /etc/cron.d/push-notify):
+#   0 14 * * * root /usr/local/lib/push-notify/raid-health-check.sh
 
 set -uo pipefail
+# cron подава минимален PATH – без /usr/local/bin (push-notify) и /usr/sbin (mdadm)
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 CONF_FILE="${PUSH_NOTIFY_CONF:-/etc/push-notify/push-notify.conf}"
 STATE_DIR="/var/lib/push-notify/state"
@@ -11,21 +17,32 @@ STATE_DIR="/var/lib/push-notify/state"
 source "$CONF_FILE"
 mkdir -p "$STATE_DIR"
 
+# Не допуска две едновременни пускания.
+exec 9> "${RAID_HEALTH_LOCK:-/run/raid-health-check.lock}"
+flock -n 9 || exit 0
+
 : "${DISK_WARN:=85}" "${DISK_CRIT:=95}" "${MEM_WARN:=90}" "${LOAD_WARN:=1.5}" "${TEMP_WARN:=80}"
 : "${SERVICES:=}" "${AUTO_RESTART:=no}" "${CHECK_FAILED_UNITS:=yes}" "${CHECK_REBOOT_REQUIRED:=yes}" "${HTTP_CHECKS:=}"
+: "${RAID_DEVICES:=}" "${RAID_REMIND:=yes}"
 
 # Първо – изпрати отложени известия (ако преди е нямало мрежа).
 push-notify -q --flush
 
-# check KEY STATE TITLE BODY CATEGORY
+# check KEY STATE TITLE BODY CATEGORY [remind]
 #   STATE: ok | warning | critical
 # Праща известие, ако състоянието е различно от предишното.
+# С „remind“ неоправен проблем се съобщава отново при всяко пускане.
 check() {
-    local key="$1" state="$2" title="$3" body="$4" category="$5"
+    local key="$1" state="$2" title="$3" body="$4" category="$5" remind="${6:-}"
     local file="$STATE_DIR/$(printf '%s' "$key" | tr -c 'a-zA-Z0-9_.-' '_')"
     local old="ok"
     [[ -r "$file" ]] && old=$(<"$file")
-    [[ "$state" == "$old" ]] && return 0
+    if [[ "$state" == "$old" ]]; then
+        if [[ "$remind" == remind && "$state" != ok ]]; then
+            push-notify -q -l "$state" -c "$category" "🔁 Все още: $title" "$body"
+        fi
+        return 0
+    fi
 
     if [[ "$state" == "ok" ]]; then
         push-notify -q -l info -c "$category" "✅ Възстановено: $title" "$body"
@@ -34,6 +51,44 @@ check() {
     fi
     echo "$state" > "$file"
 }
+
+# --- RAID масиви (mdadm) ---
+remind=""; [[ "$RAID_REMIND" == "yes" ]] && remind=remind
+for dev in $RAID_DEVICES; do
+    name=${dev##*/}
+    if [[ ! -b "$dev" ]]; then
+        check "raid-$name" critical "💽 $dev липсва" "Устройството $dev не съществува.
+
+/proc/mdstat:
+$(cat /proc/mdstat 2>&1)" system $remind
+        continue
+    fi
+
+    detail=$(mdadm --detail "$dev" 2>&1)
+    raid_state=$(awk -F' : ' '/^ *State :/ {print $2; exit}' <<<"$detail")
+    raid_state=${raid_state:-неизвестно}
+    case "$raid_state" in
+        *inactive*|*FAILED*|*[Nn]ot\ [Ss]tarted*|неизвестно) state=critical ;;
+        *degraded*) state=warning ;;
+        *) state=ok ;;
+    esac
+
+    if [[ "$state" == ok ]]; then
+        check "raid-$name" ok "💽 RAID $dev" "Текущо състояние на $dev: $raid_state" system
+    else
+        failed=$(grep -E 'faulty|removed' <<<"$detail")
+        check "raid-$name" "$state" "💽 Проблем с $dev: $raid_state" "Състояние: $raid_state
+
+Повредени/липсващи дискове:
+${failed:-няма данни}
+
+mdadm --detail $dev:
+$detail
+
+/proc/mdstat:
+$(cat /proc/mdstat 2>&1)" system $remind
+    fi
+done
 
 # --- Дискове ---
 while read -r mount pcent; do
@@ -94,6 +149,13 @@ $(journalctl -u "$svc" -n 5 --no-pager -o cat 2>/dev/null)"
             body="$body
 
 Автоматичният рестарт НЕ успя."
+        fi
+        # При Apache най-честата причина е грешка в конфигурацията.
+        if [[ "$svc" == apache2 ]] && command -v apache2ctl >/dev/null; then
+            body="$body
+
+apache2ctl configtest:
+$(apache2ctl configtest 2>&1 | tail -5)"
         fi
         check "svc-$svc" critical "❌ Спряла услуга: $svc" "$body" service
     fi

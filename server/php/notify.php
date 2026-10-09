@@ -3,10 +3,9 @@
  * notify.php – ОПЦИОНАЛНО. HTTP endpoint, чрез който ваши уеб приложения
  * (или друга машина) могат да пратят push известие през push-notify.
  *
- * Изисква ред в sudoers (visudo -f /etc/sudoers.d/push-notify):
- *   www-data ALL=(root) NOPASSWD: /usr/local/bin/push-notify
- *   Defaults!/usr/local/bin/push-notify !pam_session
- * (вторият ред спира известието „sudo“ за всяко извикване от PHP)
+ * Изисква www-data да е в SUDO_USERS в /etc/push-notify/push-notify.conf
+ * (SUDO_USERS="www-data") и повторно пускане на install.sh – той създава
+ * /etc/sudoers.d/push-notify. Извикванията от PHP не предизвикват известие „sudo“.
  *
  * Заявка:
  *   curl -X POST https://сървър/notify.php \

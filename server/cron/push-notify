@@ -1,0 +1,7 @@
+# /etc/cron.d/push-notify – инсталира се от install.sh
+# Проверка на RAID и състоянието на сървъра всеки ден в 14:00.
+# За по-често: "*/5 * * * *" (на всеки 5 мин) или "0 * * * *" (всеки час).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 14 * * * root /usr/local/lib/push-notify/raid-health-check.sh

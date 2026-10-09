@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Монохромен слой за тематични икони (Android 13+). Важна е само прозрачността:
+     светодиодите, процепите и камбанката са дупки (evenOdd).
+     Безопасна зона на adaptive икона: кръг с диаметър 66 в центъра на 108x108. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="1" android:scaleY="1" android:translateX="-1" android:translateY="1.5">
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M34,44h30a4,4 0,0 1,4,4v6a4,4 0,0 1,-4,4h-30a4,4 0,0 1,-4,-4v-6a4,4 0,0 1,4,-4zM34.5,51a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0zM45.25,50h13.5a1.25,1.25 0,0 1,1.25,1.25v0.0a1.25,1.25 0,0 1,-1.25,1.25h-13.5a1.25,1.25 0,0 1,-1.25,-1.25v-0.0a1.25,1.25 0,0 1,1.25,-1.25z" />
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M34,62h30a4,4 0,0 1,4,4v6a4,4 0,0 1,-4,4h-30a4,4 0,0 1,-4,-4v-6a4,4 0,0 1,4,-4zM34.5,69a2.5,2.5 0,1 0,5,0a2.5,2.5 0,1 0,-5,0zM45.25,68h13.5a1.25,1.25 0,0 1,1.25,1.25v0.0a1.25,1.25 0,0 1,-1.25,1.25h-13.5a1.25,1.25 0,0 1,-1.25,-1.25v-0.0a1.25,1.25 0,0 1,1.25,-1.25z" />
+        <group android:translateX="58.84" android:translateY="33.84" android:scaleX="0.68" android:scaleY="0.68">
+            <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M-3.441,12a15.441,15.441 0,1 0,30.882,0a15.441,15.441 0,1 0,-30.882,0zM12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.89,2 2,2zM18,16v-5c0,-3.07 -1.64,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.63,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2z" />
+        </group>
+    </group>
+</vector>

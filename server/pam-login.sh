@@ -28,6 +28,11 @@ case "${PAM_SERVICE:-}" in
     sudo)
         [[ "${NOTIFY_SUDO:-yes}" == "yes" ]] || exit 0
         [[ "${PAM_RUSER:-root}" == "root" ]] && exit 0   # скриптове, пуснати от root
+        # cron/PHP на потребител от SUDO_USERS (без терминал) извикват „sudo push-notify“ –
+        # това не е човешки вход и не се съобщава.
+        if [[ -z "${PAM_TTY:-}" || "${PAM_TTY:-}" != /dev/* ]] && [[ " ${SUDO_USERS:-} " == *" $PAM_RUSER "* ]]; then
+            exit 0
+        fi
         push-notify -q -l info -c security -k "sudo-$PAM_RUSER-$PAM_USER" \
             "🛡️ sudo: ${PAM_RUSER:-?} → $PAM_USER" \
             "Потребителят ${PAM_RUSER:-?} изпълни команда като $PAM_USER.

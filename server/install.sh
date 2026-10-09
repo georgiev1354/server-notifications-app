@@ -12,11 +12,14 @@ cd "$(dirname "$0")"
 [[ $EUID -eq 0 ]] || { echo "Пуснете с sudo."; exit 1; }
 
 PAM_LINE="session optional pam_exec.so quiet /usr/local/lib/push-notify/pam-login.sh"
-UNITS="push-health.timer push-daily.timer push-boot.service"
+UNITS="push-daily.timer push-boot.service push-auth-watch.service"
+# Остарели единици от предишни версии (заменени от /etc/cron.d/push-notify).
+OLD_UNITS="push-health.timer push-health.service"
 
 if [[ "${1:-}" == "--uninstall" ]]; then
-    systemctl disable --now $UNITS 2>/dev/null || true
-    rm -f /etc/systemd/system/push-{health,daily}.{service,timer} /etc/systemd/system/push-boot.service
+    systemctl disable --now $UNITS $OLD_UNITS 2>/dev/null || true
+    rm -f /etc/systemd/system/push-{health,daily}.{service,timer} /etc/systemd/system/push-{boot,auth-watch}.service
+    rm -f /etc/sudoers.d/push-notify /etc/cron.d/push-notify
     systemctl daemon-reload
     for f in /etc/pam.d/sshd /etc/pam.d/sudo; do
         sed -i "\|pam-login.sh|d" "$f"
@@ -35,7 +38,8 @@ apt-get install -y -qq curl jq openssl fail2ban whois >/dev/null
 echo "==> Копиране на скриптовете"
 install -m 755 push-notify /usr/local/bin/push-notify
 install -d -m 755 /usr/local/lib/push-notify
-install -m 755 health-check.sh daily-report.sh pam-login.sh /usr/local/lib/push-notify/
+install -m 755 raid-health-check.sh daily-report.sh pam-login.sh auth-watch.sh /usr/local/lib/push-notify/
+rm -f /usr/local/lib/push-notify/health-check.sh   # стара версия
 install -d -m 700 /etc/push-notify /var/lib/push-notify /var/cache/push-notify /var/spool/push-notify
 
 if [[ ! -f /etc/push-notify/push-notify.conf ]]; then
@@ -67,10 +71,44 @@ for f in /etc/pam.d/sshd /etc/pam.d/sudo; do
     grep -qF "pam-login.sh" "$f" || echo "$PAM_LINE" >> "$f"
 done
 
-echo "==> systemd таймери"
+echo "==> sudoers (SUDO_USERS – push-notify без парола)"
+sudo_users=$(. /etc/push-notify/push-notify.conf; echo "${SUDO_USERS:-}")
+if [[ -n "$sudo_users" ]]; then
+    tmp=$(mktemp)
+    {
+        echo "# Генериран от push-notify/install.sh – не редактирайте ръчно (сменете SUDO_USERS)."
+        for u in $sudo_users; do
+            echo "$u ALL=(root) NOPASSWD: /usr/local/bin/push-notify"
+        done
+    } > "$tmp"
+    chmod 440 "$tmp"
+    # Грешен sudoers файл може да блокира sudo – инсталираме само след проверка.
+    if visudo -cf "$tmp" >/dev/null; then
+        mv "$tmp" /etc/sudoers.d/push-notify
+        echo "    Разрешено за: $sudo_users"
+    else
+        rm -f "$tmp"
+        echo "    ВНИМАНИЕ: sudoers файлът не мина проверка – не е инсталиран."
+    fi
+else
+    rm -f /etc/sudoers.d/push-notify
+fi
+
+echo "==> cron (raid-health-check.sh всеки ден в 14:00)"
+# Съществуващ /etc/cron.d/push-notify не се презаписва – може да сте сменили часа.
+[[ -f /etc/cron.d/push-notify ]] || install -m 644 cron/push-notify /etc/cron.d/push-notify
+command -v mdadm >/dev/null || echo "    ВНИМАНИЕ: липсва mdadm – проверката на RAID ще съобщи грешка (apt install mdadm)."
+
+echo "==> systemd таймери и услуги"
+# Миграция: 5-минутната проверка (push-health.timer) е заменена от cron.
+if systemctl list-unit-files push-health.timer >/dev/null 2>&1; then
+    systemctl disable --now $OLD_UNITS >/dev/null 2>&1 || true
+    rm -f /etc/systemd/system/push-health.service /etc/systemd/system/push-health.timer
+fi
 install -m 644 systemd/*.service systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now $UNITS >/dev/null 2>&1
+systemctl restart push-auth-watch.service
 
 echo
 echo "Готово! Topic за приложението:"

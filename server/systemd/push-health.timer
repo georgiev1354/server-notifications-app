@@ -1,9 +1,0 @@
-[Unit]
-Description=Проверка на състоянието на всеки 5 минути
-
-[Timer]
-OnBootSec=2min
-OnUnitActiveSec=5min
-
-[Install]
-WantedBy=timers.target
