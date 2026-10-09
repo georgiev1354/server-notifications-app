@@ -32,8 +32,19 @@ if [[ "${1:-}" == "--uninstall" ]]; then
 fi
 
 echo "==> Инсталиране на нужните пакети"
-apt-get update -qq
-apt-get install -y -qq curl jq openssl fail2ban whois >/dev/null
+PACKAGES="curl jq openssl fail2ban whois"
+missing=""
+for p in $PACKAGES; do
+    dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"
+done
+if [[ -n "$missing" ]]; then
+    # Счупено чуждо хранилище (напр. packagecloud) не трябва да спира инсталацията –
+    # пакетите идват от официалните хранилища на Ubuntu.
+    apt-get update -qq || echo "    ВНИМАНИЕ: apt-get update даде грешка (вижте съобщението по-горе) – продължавам."
+    apt-get install -y -qq $missing >/dev/null
+else
+    echo "    Всички пакети вече са инсталирани."
+fi
 
 echo "==> Копиране на скриптовете"
 install -m 755 push-notify /usr/local/bin/push-notify
