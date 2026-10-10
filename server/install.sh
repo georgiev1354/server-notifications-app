@@ -75,7 +75,12 @@ echo "==> fail2ban"
 install -m 644 fail2ban/action.d/push-notify.conf /etc/fail2ban/action.d/push-notify.conf
 install -m 644 fail2ban/jail.d/push-notify.local /etc/fail2ban/jail.d/push-notify.local
 systemctl enable fail2ban >/dev/null 2>&1
-systemctl restart fail2ban
+if fail2ban-client -t >/dev/null 2>&1; then
+    systemctl restart fail2ban
+else
+    echo "    ГРЕШКА в конфигурацията на fail2ban – не е рестартиран:" >&2
+    fail2ban-client -t 2>&1 | tail -5 >&2
+fi
 
 echo "==> PAM (известие при SSH вход и sudo)"
 for f in /etc/pam.d/sshd /etc/pam.d/sudo; do

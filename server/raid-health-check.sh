@@ -26,7 +26,7 @@ flock -n 9 || exit 0
 : "${RAID_DEVICES:=}" "${RAID_REMIND:=yes}"
 
 # Първо – изпрати отложени известия (ако преди е нямало мрежа).
-push-notify -q --flush
+push-notify --flush
 
 # check KEY STATE TITLE BODY CATEGORY [remind]
 #   STATE: ok | warning | critical

@@ -137,9 +137,11 @@ flush_spool() {
     return 0
 }
 
-usage() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
 # --- Аргументи ---
+# -q може да стои и пред --flush/--test
+[[ "${1:-}" == "-q" ]] && { QUIET=1; shift; }
 case "${1:-}" in
     --flush) flush_spool; exit 0 ;;
     --test)  set -- -l info -c custom "Тестово известие" "Здравей от $SERVER_NAME! Известията работят. ✅" ;;
